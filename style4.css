@@ -1,0 +1,332 @@
+/* style.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    text-align: center;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: #2c3e50;
+}
+
+.form-container {
+    margin-top: 20px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden; /* Ensures the iframe fits the container */
+}
+/* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #eef2f3;
+    color: #333;
+    transition: background-color 1s ease;
+}
+
+body {
+    margin: 10;
+    background-color: #f0f0f0;
+    font-family: Arial, sans-serif;
+}
+
+.marquee {
+    overflow: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+    width: 100%;
+    background-color: #d4651a;
+    color: white;
+    padding: auto;
+}
+
+.marquee p {
+    display: inline-block;
+    animation: scroll 10s linear infinite;
+}
+
+@keyframes scroll {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+
+.container-lg {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+.centered-heading {
+    display: block;
+    font-size: 2em;
+    margin-top: 0.67em;
+    margin-bottom: 0.67em;
+    margin-left: 0pc;
+    margin-right: 10pc;
+    color: #2c3e50;          /* Sets the text color */
+    font-family: 'Georgia', serif; /* Stylish font */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); /* Optional shadow for depth */
+}
+
+
+/* Image Slider Styles */
+.image-slider {
+    width: 100vw; /* Full viewport width */
+    overflow: hidden; /* Hide overflowing images */
+    position: relative;
+}
+
+.slider {
+    display: flex;
+    animation: slide 20s  linear infinite; /* Animation for sliding */
+}
+
+.slider img {
+    width: 30vw; /* Each image takes full viewport width */
+    height: auto; /* Maintain aspect ratio */
+}
+
+@keyframes slide {
+    0% {
+        transform: translateX(100%); /* Start from right */
+    }
+    100% {
+        transform: translateX(-100%); /* Move to left */
+    }
+}
+
+/* Header Styles */
+.header {
+    background-image: url('Photos/7_cleanup.png'); /* Background image */
+    background-size: cover;
+    background-position: center;
+    color: white;
+    text-align: center;
+    padding: 130px 50px; /* Adjust padding */
+}
+
+.header h1 {
+    font-size: 3.5em;
+    margin: 0;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7); /* Shadow effect */
+}
+
+.header .tagline {
+    font-size: 1.8em;
+    margin-top: 10px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+/* Navigation Styles */
+nav {
+    background-color: #34495e;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline;
+    margin: 0 15px;
+}
+
+nav ul li a {
+    color: #ecf0f1;
+    text-decoration: none;
+    padding: 10px 15px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    border-radius: 5px;
+}
+
+nav ul li a:hover {
+    background-color: #e67e22;
+    transform: scale(1.1);
+}
+
+/* Main Content Styles */
+main {
+    padding: 20px;
+}
+
+h2 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-family: 'Georgia', serif; /* Stylish font for headings */
+}
+
+/* Features Section */
+.app-features {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.app-feature {
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 10px;
+    flex: 1;
+    min-width: 250px;
+    max-width: 30%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.app-feature:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.app-feature img {
+    width: 100%;
+    border-radius: 5px;
+    animation: zoomIn 0.5s; /* Animation for images */
+}
+
+@keyframes zoomIn {
+    from {
+        transform: scale(0.9);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+.app-feature h3 {
+    color: #e67e22;
+    transition: color 0.3s ease;
+}
+
+.app-feature:hover h3 {
+    color: #c0392b; /* Change color on hover */
+}
+
+/* About Section Styles */
+.about {
+    margin-top: 40px;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 1.5s ease;
+}
+
+.about-item {
+    margin-bottom: 20px;
+}
+
+.about-item h2,
+.about-item h3 {
+    color: #2c3e50;
+    font-family: 'Georgia', serif; /* Stylish font for headings */
+}
+
+/* Footer Styles */
+footer {
+    text-align: center;
+    padding: 15px;
+    background-color: #34495e;
+    color: #ecf0f1;
+    margin-top: 40px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .app-feature {
+        max-width: 100%;
+    }
+
+    nav ul li {
+        display: block;
+        margin: 10px 0;
+    }
+
+    h1 {
+        font-size: 2.5em; /* Adjusted for smaller screens */
+    }
+
+    .tagline {
+        font-size: 1.2em; /* Adjusted for smaller screens */
+    }
+}
+body { 
+    font-family: Arial, sans-serif; 
+    margin: 0; 
+    padding: 0; 
+    background-color: #f0f0f0; 
+} 
+
+.elementor-section { 
+    padding: 40px 0; 
+} 
+
+.elementor-container { 
+    display: flex; 
+    justify-content: space-around; 
+    align-items: center; 
+    flex-wrap: wrap; 
+} 
+
+.elementor-column { 
+    flex: 1; 
+    max-width: 200px; 
+    background: linear-gradient(135deg, #c57a19, #ff8800); 
+    border-radius: 8px; 
+    padding: 20px; 
+    text-align: center; 
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); 
+    margin: 10px; 
+    transition: transform 0.3s, box-shadow 0.3s; 
+} 
+
+.elementor-column:hover { 
+    transform: scale(1.05); 
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); 
+} 
+
+.elementor-widget-wrap { 
+    margin: 0; 
+} 
+
+.heading-widget { 
+    margin-bottom: 10px; 
+} 
+
+.elementor-heading-title { 
+    font-size: 2.5rem; 
+    color: white; 
+    margin: 0; 
+} 
+
+.text-widget p { 
+    font-size: 1.2rem; 
+    color: white; 
+    margin: 0; 
+}
+
+
+

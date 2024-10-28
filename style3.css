@@ -1,0 +1,149 @@
+/* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #eef2f3;
+    color: #333;
+    transition: background-color 1s ease;
+}
+
+.container-lg {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+.centered-heading {
+    font-size: 2em;
+    margin: 0.67em 10pc;
+    color: #2c3e50;
+    font-family: 'Georgia', serif;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Header Styles */
+.header {
+    background-image: url('Photos/7_cleanup.png');
+    background-size: cover;
+    background-position: center;
+    color: white;
+    text-align: center;
+    padding: 130px 50px;
+}
+
+.header h1 {
+    font-size: 3.5em;
+    margin: 0;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+}
+
+.header .tagline {
+    font-size: 1.8em;
+    margin-top: 10px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+/* Navigation Styles */
+nav {
+    background-color: #34495e;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline;
+    margin: 0 15px;
+}
+
+nav ul li a {
+    color: #ecf0f1;
+    text-decoration: none;
+    padding: 10px 15px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    border-radius: 5px;
+}
+
+nav ul li a:hover {
+    background-color: #e67e22;
+    transform: scale(1.1);
+}
+
+/* About Section Styles */
+.about-section {
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    padding: 40px; 
+    background-color: #ffffff; 
+    border-radius: 10px; 
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    animation: fadeIn 1s ease-in; 
+}
+
+.about-content { 
+    flex: 1; 
+    margin-right: 20px; 
+}
+
+.about-image {
+    text-align: center;
+}
+
+.custom-image {
+    width: 300px; /* Set the width you want */
+    height: auto; /* Maintain aspect ratio */
+    max-width: 100%; /* Responsive behavior */
+    border-radius: 8px; /* Optional: rounded corners */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* General styles for the gallery */
+.gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; /* space between images */
+    justify-content: center; /* center the images */
+}
+
+/* Styles for each image */
+.gallery img {
+    width: 200px; /* Adjust width as necessary */
+    height: auto;
+    opacity: 0; /* Initially hidden */
+    transform: scale(0.9); /* Slightly smaller */
+    animation: fadeIn 0.5s forwards; /* Apply fadeIn animation */
+    animation-delay: calc(0.1s * var(--i)); /* Staggered delay using CSS variable */
+    transition: transform 0.3s ease; /* Smooth scale effect */
+}
+
+/* Keyframes for the fadeIn animation */
+@keyframes fadeIn {
+    to {
+        opacity: 1; /* Fully visible */
+        transform: scale(1); /* Scale to normal size */
+    }
+}
+
+/* Hover effect */
+.gallery img:hover {
+    transform: scale(1.05); /* Scale up on hover */
+}
+
+/* Use this class for the images to enable the staggered effect */
+.gallery img:nth-child(1) { --i: 1; }
+.gallery img:nth-child(2) { --i: 2; }
+.gallery img:nth-child(3) { --i: 3; }
+.gallery img:nth-child(4) { --i: 4; }
+.gallery img:nth-child(5) { --i: 5; }
+.gallery img:nth-child(6) { --i: 6; }

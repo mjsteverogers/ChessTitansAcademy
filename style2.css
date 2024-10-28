@@ -1,0 +1,177 @@
+/* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #eef2f3;
+    color: #333;
+    transition: background-color 1s ease;
+}
+
+body {
+    margin: 10;
+    background-color: #f0f0f0;
+    font-family: Arial, sans-serif;
+}
+
+.marquee {
+    overflow: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+    width: 100%;
+    background-color: #d4651a;
+    color: white;
+    padding: auto;
+}
+
+.marquee p {
+    display: inline-block;
+    animation: scroll 10s linear infinite;
+}
+
+@keyframes scroll {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+
+.container-lg {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+.centered-heading {
+    display: block;
+    font-size: 2em;
+    margin-top: 0.67em;
+    margin-bottom: 0.67em;
+    margin-left: 0pc;
+    margin-right: 10pc;
+    color: #2c3e50;          /* Sets the text color */
+    font-family: 'Georgia', serif; /* Stylish font */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); /* Optional shadow for depth */
+}
+
+/* Header Styles */
+.header {
+    background-image: url('Photos/7_cleanup.png'); /* Background image */
+    background-size: cover;
+    background-position: center;
+    color: white;
+    text-align: center;
+    padding: 130px 50px; /* Adjust padding */
+}
+
+.header h1 {
+    font-size: 3.5em;
+    margin: 0;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7); /* Shadow effect */
+}
+
+.header .tagline {
+    font-size: 1.8em;
+    margin-top: 10px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+}
+/* Navigation Styles */
+nav {
+    background-color: #34495e;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline;
+    margin: 0 15px;
+}
+
+nav ul li a {
+    color: #ecf0f1;
+    text-decoration: none;
+    padding: 10px 15px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    border-radius: 5px;
+}
+
+nav ul li a:hover {
+    background-color: #e67e22;
+    transform: scale(1.1);
+}
+
+
+.about-section {
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    padding: 40px; 
+    background-color: #ffffff; 
+    border-radius: 10px; 
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    animation: fadeIn 1s ease-in; 
+}
+
+.about-content { 
+    flex: 1; 
+    margin-right: 20px; 
+}
+
+.about-image {
+    flex: 1; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+}
+
+.about-image img {
+    max-width: 100%; 
+    border-radius: 10px; 
+    animation: slideIn 1s ease-in; 
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+/* style.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    text-align: center;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: #2c3e50;
+}
+
+.map-container {
+    margin-top: 20px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden; /* Ensures the iframe fits the container */
+}
+
