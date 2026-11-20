@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chess Titans Academy - Manage Exams</title>
+    <link rel="icon" href="images/logo.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="cta-loader.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'], },
+                    colors: {
+                        brand: { 50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12', },
+                        secondary: { 900: '#1a1a1a', 800: '#262626', }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #fff7ed;
+            background-image: linear-gradient(rgba(249, 115, 22, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            height: 100vh; height: 100dvh;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+            border: 1px solid rgba(249, 115, 22, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(234, 88, 12, 0.1), 0 8px 10px -6px rgba(234, 88, 12, 0.1);
+        }
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .loader {
+            border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #ea580c;
+            width: 20px; height: 20px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Custom Animation for Dancing Robot */
+        @keyframes dance {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-4px) rotate(-15deg); }
+            50% { transform: translateY(0) rotate(0deg); }
+            75% { transform: translateY(-4px) rotate(15deg); }
+        }
+        .animate-dance {
+            animation: dance 1s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .sidebar-transition { transition: transform 0.3s ease-in-out; }
+        .snap-x-mandatory { scroll-snap-type: x mandatory; }
+        .snap-center { scroll-snap-align: center; }
+
+        /* Custom Calendar Grid */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #f1f5f9; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;}
+        .calendar-day.attended { background-color: #ecfdf5; border-color: #10b981; color: #065f46; }
+        .calendar-day.pending { background-color: #fffbeb; border-color: #f59e0b; color: #b45309; }
+        .calendar-day.admin-interactive:hover { border-color: #10b981; background-color: #f0fdf4; }
+        .calendar-mark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #10b981; margin: 1px; }
+        .calendar-mark-pending { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #f59e0b; margin: 1px; }
+    </style>
+</head>
+<body class="antialiased text-slate-800 flex flex-col overflow-hidden">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-xs px-4 md:px-0 ml-auto"></div>
+
+    <div id="app" class="flex-grow flex items-center justify-center p-4 w-full h-full relative">
+        <div class="text-brand-600 font-bold flex flex-col items-center">
+            <div class="loader mb-2 w-8 h-8 border-4"></div>
+            Connecting to Academy Server...
+        </div>
+    </div>
+
+    <div id="global-modals"></div>
+
+    <script>
+        // --- API & ROUTE CONFIGURATION ---
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwIRGaR75isLAnfazJciZ-YWIk_GHJK-MPcV0TZwlLkoUEJvc1LQ1GKpAiYxoMlXYy1PQ/exec';
+
+        const ROUTES = {
+            login: 'index.html',
+            student: 'student.html',
+            adminDashboard: 'admin.html',
+            unrankedStudents: 'unranked.html',
+            expiredStudents: 'expired.html',
+            pendingStudents: 'pending.html',
+            adminAttendance: 'attendance.html',
+            initialStudents: 'initial.html',
+            attendanceApproval: 'attendance-approval.html',
+            adminExams: 'exams.html',
+            puzzleBooks: 'puzzle-books.html',
+            academyTieup: 'tieup.html',
+            activityLogs: 'activity-logs.html'
+        };
+
+        const ACADEMY_LEVELS = [
+            'Beginner Level 1', 'Beginner Level 2',
+            'Intermediate Level 1', 'Intermediate Level 2',
+            'Advance Level 1', 'Advance Level 2', 'Advance Level 3',
+            'Advance Pro',
+            'Tournament Puzzles',
+            'Exam'
+        ];
+
+        function escapeJs(str) {
+            return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '"');
+        }
+
+        window.currentUser = null;
+        window.cachedData = null;
+
+        // --- DATA MANAGEMENT ---
+        async function fetchUsers() { try { return await (await fetch(`${API_URL}?action=getUsers`)).json(); } catch (e) { return null; } }
+        async function fetchExams() { try { return await (await fetch(`${API_URL}?action=getExams`)).json(); } catch (e) { return []; } }
+        async function fetchSubmissions() { try { return await (await fetch(`${API_URL}?action=getSubmissions`)).json(); } catch (e) { return []; } }
+        async function fetchAttendance() { try { return await (await fetch(`${API_URL}?action=getAttendance`)).json(); } catch (e) { return []; } }
+
+        async function addExamAPI(data) { return await sendPostRequest({ action: 'addExam', data: data }); }
+        async function deleteExamAPI(id) { return await sendPostRequest({ action: 'deleteExam', id: id }); }
+        async function updateSubmissionStatusAPI(id, status, remarks) { return await sendPostRequest({ action: 'gradeSubmission', id: id, status: status, remarks: remarks }); }
+        async function deleteSubmissionAPI(id) { return await sendPostRequest({ action: 'deleteSubmission', id: id }); }
+
+        async function sendPostRequest(data) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(data)
+                });
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (err) {
+                    return { success: false, message: "Server response was invalid or timed out." };
+                }
+            } catch (error) {
+                return { success: false, message: error.message };
+            }
+        }
+
+        // --- UI UTILITIES ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-600 text-white border-l-4 border-emerald-800',
+                error: 'bg-red-500 text-white border-l-4 border-red-800',
+                info: 'bg-brand-600 text-white border-l-4 border-brand-800'
+            };
+            const icons = {
+                success: '<i class="fas fa-check-circle mr-2"></i>',
+                error: '<i class="fas fa-exclamation-triangle mr-2"></i>',
+                info: '<i class="fas fa-info-circle mr-2"></i>'
+            };
+            toast.className = `${colors[type]} px-4 py-3 md:px-6 md:py-4 rounded shadow-2xl transform transition-all duration-300 translate-x-full pointer-events-auto flex items-center font-medium text-sm md:text-base`;
+            toast.innerHTML = `${icons[type]} <span>${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-x-full'));
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- SIDEBAR GENERATOR ---
+        function getAdminSidebar(activeTab, unrankedCount, expiredCount, pendingCount, pendingAttCount = 0, initialCount = 0, tieupCount = 0) {
+            const expiredBadge = expiredCount > 0 ? `<span class="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${expiredCount}</span>` : '';
+            const pendingBadge = pendingCount > 0 ? `<span class="ml-auto bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${pendingCount}</span>` : '';
+            const unrankedBadge = unrankedCount > 0 ? `<span class="ml-auto bg-brand-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${unrankedCount}</span>` : '';
+            const initialBadge = initialCount > 0 ? `<span class="ml-auto bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${initialCount}</span>` : '';
+            const attBadge = pendingAttCount > 0 ? `<span class="ml-auto bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${pendingAttCount}</span>` : '';
+            const tieupBadge = tieupCount > 0 ? `<span class="ml-auto bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${tieupCount}</span>` : '';
+
+            const tabs = [
+                { id: 'adminDashboard', icon: 'fa-users-cog', label: 'Dashboard', badge: '' },
+                { id: 'unrankedStudents', icon: 'fa-user-tag', label: 'Unranked Students', badge: unrankedBadge },
+                { id: 'expiredStudents', icon: 'fa-clock', label: 'Plan Expired Students', badge: expiredBadge },
+                { id: 'pendingStudents', icon: 'fa-user-clock', label: 'Pending Students', badge: pendingBadge },
+                { id: 'adminAttendance', icon: 'fa-calendar-check', label: 'Student Attendance', badge: '' },
+                { id: 'initialStudents', icon: 'fa-chess-pawn', label: 'Initial Grade Students', badge: initialBadge },
+                { id: 'attendanceApproval', icon: 'fa-check-double', label: 'Attendance Approval', badge: attBadge },
+                { id: 'adminExams', icon: 'fa-file-signature', label: 'Manage Exams', badge: '' },
+                { id: 'puzzleBooks', icon: 'fa-book-open', label: 'Puzzle Book Upload', badge: '' },
+                { id: 'academyTieup', icon: 'fa-handshake', label: 'Academy Tie-up', badge: tieupBadge },
+                { id: 'activityLogs', icon: 'fa-history', label: 'Activity Logs', badge: '' }
+            ];
+
+            const navItems = tabs.map(t => {
+                const isActive = activeTab === t.id;
+                const baseClass = "w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors mt-1";
+                if (isActive && t.id === 'adminExams') return `<div class="${baseClass} bg-purple-600 text-white shadow-lg"><i class="fas ${t.icon} w-5 text-center"></i> <span>${t.label}</span> ${t.badge}</div>`;
+                if (isActive) return `<div class="${baseClass} bg-brand-600 text-white shadow-lg"><i class="fas ${t.icon} w-5 text-center"></i> <span>${t.label}</span> ${t.badge}</div>`;
+                return `<button onclick="navigateTo('${t.id}')" class="${baseClass} text-slate-400 hover:bg-white/5 hover:text-white"><i class="fas ${t.icon} w-5 text-center"></i> <span>${t.label}</span> ${t.badge}</button>`;
+            }).join('');
+
+            return `
+                <div id="adminSidebar" class="w-64 bg-secondary-900 text-slate-300 flex-shrink-0 flex flex-col absolute inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 z-50 sidebar-transition h-full border-r border-slate-800">
+                    <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 20px 20px;"></div>
+                    <div class="p-6 border-b border-white/10 relative z-10 flex justify-between items-center">
+                        <div class="flex items-center gap-3 text-white">
+                            <div class="bg-brand-500 w-8 h-8 rounded flex items-center justify-center text-secondary-900"><i class="fas fa-chess-queen"></i></div>
+                            <span class="font-bold text-lg tracking-wide">TitansAdmin</span>
+                        </div>
+                        <button onclick="toggleSidebar()" class="md:hidden text-white p-2"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <nav class="flex-grow p-4 space-y-1 relative z-10 overflow-y-auto">
+                        <div class="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Management</div>
+                        ${navItems}
+                    </nav>
+                    <div class="p-4 border-t border-white/10 relative z-10">
+                        <button onclick="handleLogout()" class="w-full px-4 py-2 border border-slate-700 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/50 text-slate-400 rounded-lg transition-all flex items-center justify-center gap-2"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- VIEW RENDERER ---
+        function renderAdminExams(data) {
+            const users = data.users || [];
+            const exams = data.exams || [];
+            const submissions = data.submissions || [];
+            const attendanceData = data.attendance || [];
+            const examSubmissions = submissions.filter(s => s.uploadType === 'Exam');
+
+            const allStudents = users.filter(u => ['approved', 'blocked', 'expired', 'tieup'].includes(u.status) && u.role !== 'admin');
+            const unrankedCount = allStudents.filter(u => !u.level || u.level === 'Unranked').length;
+            const initialCount = allStudents.filter(u => String(u.level || '').trim().toLowerCase() === 'initial').length;
+            const tieupCount = users.filter(u => u.status === 'tieup' && u.role !== 'admin').length;
+            const expiredCount = users.filter(u => u.status === 'expired').length;
+            const pendingCount = users.filter(u => u.status === 'pending').length;
+            const pendingAttCount = attendanceData.filter(a => a.status === 'pending').length;
+
+            examSubmissions.sort((a, b) => {
+                const statusOrder = { 'pending': 1, 'incorrect': 2, 'correct': 3 };
+                return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+            });
+
+            return `
+            <div class="glass-panel w-full max-w-6xl rounded-2xl overflow-hidden fade-in shadow-2xl flex flex-col h-full md:h-[90vh]">
+                <div class="flex h-full relative">
+                    ${getAdminSidebar('adminExams', unrankedCount, expiredCount, pendingCount, pendingAttCount, initialCount, tieupCount)}
+
+                    <div id="sidebarOverlay" onclick="toggleSidebar()" class="absolute inset-0 bg-black/50 z-40 hidden md:hidden fade-in"></div>
+
+                    <div class="flex-grow flex flex-col bg-slate-50 overflow-hidden w-full">
+                        <header class="bg-white border-b border-slate-200 p-4 md:p-6 flex justify-between items-center sticky top-0 z-20">
+                            <div class="flex items-center gap-3">
+                                <button onclick="toggleSidebar()" class="md:hidden text-slate-500 hover:text-brand-600 p-2"><i class="fas fa-bars text-xl"></i></button>
+                                <div><h2 class="text-lg md:text-2xl font-bold text-purple-900">Manage Exams</h2></div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="refreshData()" class="text-purple-600 hover:bg-purple-50 px-3 py-1 rounded text-sm font-medium transition-colors"><i class="fas fa-sync-alt mr-1"></i> <span class="hidden md:inline">Refresh Data</span></button>
+                            </div>
+                        </header>
+
+                        <div class="flex-grow p-4 md:p-8 overflow-y-auto">
+
+                            <div class="bg-white rounded-xl shadow-sm border border-purple-200 mb-6 md:mb-8 overflow-hidden">
+                                <div class="p-4 border-b border-purple-100 flex flex-col md:flex-row justify-between items-center gap-3 bg-purple-50">
+                                    <div class="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                                        <h3 class="font-bold text-purple-900 flex items-center gap-2 text-sm md:text-base whitespace-nowrap"><i class="fas fa-file-signature"></i> Exam Submissions</h3>
+                                        <div class="relative flex-grow md:w-64">
+                                            <input type="text" id="examSubSearch" onkeyup="filterExamSubmissions()" placeholder="Search submission name..." class="w-full pl-8 pr-4 py-1.5 text-xs rounded-full border border-purple-300 focus:border-purple-500 outline-none bg-white/80 focus:bg-white transition-all">
+                                            <i class="fas fa-search absolute left-2.5 top-1/2 transform -translate-y-1/2 text-purple-400 text-xs"></i>
+                                        </div>
+                                        <div class="w-full md:w-48">
+                                            <select id="examSubFilter" onchange="filterExamSubmissions()" class="w-full text-xs rounded-full border border-purple-300 focus:border-purple-500 outline-none py-1.5 px-3 bg-white">
+                                                <option value="all">All Status</option>
+                                                <option value="correct">Graded (Correct)</option>
+                                                <option value="pending">Pending Grade</option>
+                                                <option value="incorrect">Redo Requested</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="overflow-x-auto max-h-96">
+                                    <table class="w-full text-left text-sm text-slate-600 min-w-[700px]">
+                                        <thead class="bg-slate-50 text-slate-500 font-semibold uppercase text-xs tracking-wider sticky top-0">
+                                            <tr><th class="px-6 py-4">Student</th><th class="px-6 py-4">Exam Title</th><th class="px-6 py-4">Proof</th><th class="px-6 py-4 text-center">Grade</th><th class="px-6 py-4 text-right">Delete</th></tr>
+                                        </thead>
+                                        <tbody id="examSubmissionTableBody" class="divide-y divide-slate-100">
+                                            ${examSubmissions.length === 0 ? `<tr><td colspan="5" class="px-6 py-12 text-center text-slate-400">No exam submissions yet.</td></tr>` : examSubmissions.map(s => {
+                                                const taskTitle = s.taskTitle || 'Unknown Exam';
+                                                let rowClass = s.status === 'pending' ? "bg-purple-50/40" : "";
+                                                const student = users.find(u => u.username === s.username);
+                                                const studentLevel = student ? (student.level || 'Unranked') : 'Unknown';
+                                                const safeName = escapeJs(s.username);
+
+                                                return `
+                                                <tr class="hover:bg-slate-50 ${rowClass} transition-colors" data-status="${s.status}">
+                                                    <td class="px-6 py-4 font-bold text-slate-800 submission-name-cell">
+                                                        <div class="cursor-pointer hover:text-brand-600 underline" onclick="openStudentCalendar('${safeName}')">${s.username}</div>
+                                                        <div class="inline-block bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded border border-slate-200 mt-1">${studentLevel}</div>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-slate-600">${taskTitle}</td>
+                                                    <td class="px-6 py-4">
+                                                        <a href="${s.fileLink}" target="_blank" class="text-purple-600 hover:text-purple-800 font-bold underline flex items-center gap-2"><i class="fas fa-play-circle text-lg"></i> View File</a>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-center">
+                                                        ${s.status === 'correct'
+                                                            ? `<div><span class="text-emerald-600 font-bold text-xs"><i class="fas fa-check"></i> Passed</span>${s.remarks ? `<div class="text-[10px] text-slate-400 mt-1 italic">"${s.remarks}"</div>` : ''}</div>`
+                                                            : s.status === 'incorrect'
+                                                            ? `<div><span class="text-red-500 font-bold text-xs">Failed / Redo</span>${s.remarks ? `<div class="text-[10px] text-slate-400 mt-1 italic">"${s.remarks}"</div>` : ''}</div>`
+                                                            : `<div class="flex flex-col gap-2">
+                                                                <input type="text" id="remark-${s.id}" placeholder="Enter remarks..." class="w-full text-xs border border-slate-200 rounded px-2 py-1 outline-none focus:border-purple-500">
+                                                                <div class="flex justify-center gap-2">
+                                                                    <button onclick="handleSubmissionGrade('${s.id}', 'correct', this)" class="bg-emerald-500 text-white hover:bg-emerald-600 px-3 py-1 rounded text-xs font-bold transition-colors">Pass</button>
+                                                                    <button onclick="handleSubmissionGrade('${s.id}', 'incorrect', this)" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 px-3 py-1 rounded text-xs font-bold transition-colors">Fail</button>
+                                                                </div>
+                                                            </div>`
+                                                        }
+                                                    </td>
+                                                    <td class="px-6 py-4 text-right">
+                                                        <button onclick="handleDeleteSubmission('${s.id}', this)" class="text-slate-300 hover:text-red-500 transition-colors"><i class="fas fa-trash"></i></button>
+                                                    </td>
+                                                </tr>`;
+                                            }).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                <div class="md:col-span-1 flex flex-col gap-6">
+                                    <div class="bg-white rounded-xl shadow-sm border border-purple-200 p-6">
+                                        <h3 class="font-bold text-purple-900 mb-4 flex items-center gap-2"><i class="fas fa-plus-circle"></i> Allocate Exam</h3>
+                                        <form id="addExamForm" class="space-y-4">
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Target Level</label>
+                                                <select id="examLevel" required class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-purple-500 outline-none">
+                                                    <option value="">Select Level...</option>
+                                                    ${ACADEMY_LEVELS.map(l => `<option value="${l}">${l}</option>`).join('')}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Exam Title</label>
+                                                <input type="text" id="examTitle" required placeholder="e.g. Monthly Evaluation" class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-purple-500 outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Question Link (URL)</label>
+                                                <input type="url" id="examLink" required placeholder="https://..." class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-purple-500 outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Start Time</label>
+                                                <input type="datetime-local" id="examStart" required class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-purple-500 outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">End Time</label>
+                                                <input type="datetime-local" id="examEnd" required class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-purple-500 outline-none">
+                                            </div>
+                                            <button type="submit" id="btnAddExam" class="w-full bg-purple-600 text-white font-bold py-2 rounded-lg hover:bg-purple-700 transition-colors">Publish Exam</button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <div class="md:col-span-2 flex flex-col gap-6 h-full min-h-[500px]">
+                                    <div class="bg-white rounded-xl shadow-sm border border-purple-200 flex flex-col overflow-hidden h-full min-h-[300px]">
+                                        <div class="p-4 border-b border-purple-100 bg-purple-50 flex justify-between items-center">
+                                            <div>
+                                                <h3 class="font-bold text-purple-900"><i class="fas fa-stopwatch mr-1"></i> Active Exams</h3>
+                                                <span class="text-xs text-purple-600">Showing all allocated exams</span>
+                                            </div>
+                                        </div>
+                                        <div class="overflow-y-auto flex-grow p-0">
+                                            <table class="w-full text-left text-sm text-slate-600">
+                                                <thead class="bg-white text-slate-500 font-semibold uppercase text-xs tracking-wider sticky top-0 border-b border-slate-100">
+                                                    <tr><th class="px-6 py-3">Level</th><th class="px-6 py-3">Title & Link</th><th class="px-6 py-3">Timing</th><th class="px-6 py-3 text-right">Action</th></tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100">
+                                                    ${exams.length === 0 ? `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No exams allocated.</td></tr>` : exams.map(e => {
+                                                        return `
+                                                        <tr class="hover:bg-purple-50/50">
+                                                            <td class="px-6 py-3 font-medium text-purple-600 text-xs">${e.level}</td>
+                                                            <td class="px-6 py-3 font-bold text-slate-800">
+                                                                <a href="${e.link}" target="_blank" class="hover:underline flex items-center gap-2">${e.title} <i class="fas fa-external-link-alt text-xs text-slate-400"></i></a>
+                                                                <div class="text-[10px] text-slate-400">Added: ${e.date}</div>
+                                                            </td>
+                                                            <td class="px-6 py-3">
+                                                                <div class="text-[10px] text-slate-500 font-mono"><b>Start:</b> ${new Date(e.startTime).toLocaleString()}</div>
+                                                                <div class="text-[10px] text-slate-500 font-mono"><b>End:</b> ${new Date(e.endTime).toLocaleString()}</div>
+                                                            </td>
+                                                            <td class="px-6 py-3 text-right">
+                                                                <button onclick="handleDeleteExam('${e.id}', this)" class="text-red-400 hover:text-red-600 p-2"><i class="fas fa-trash-alt"></i></button>
+                                                            </td>
+                                                        </tr>`;
+                                                    }).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        // --- FORM EVENT LISTENERS ---
+        function attachEventListeners() {
+            const examForm = document.getElementById('addExamForm');
+            if (examForm) {
+                examForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('btnAddExam');
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = 'Publishing...';
+
+                    const examData = {
+                        level: document.getElementById('examLevel').value,
+                        title: document.getElementById('examTitle').value,
+                        link: document.getElementById('examLink').value,
+                        startTime: new Date(document.getElementById('examStart').value).toISOString(),
+                        endTime: new Date(document.getElementById('examEnd').value).toISOString()
+                    };
+
+                    const response = await addExamAPI(examData);
+                    if (response && response.success) {
+                        showToast('Exam Allocated Successfully!', 'success');
+                        await refreshData(false);
+                    } else {
+                        showToast((response && response.message) || 'Failed to allocate exam', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                });
+            }
+        }
+
+        // --- STUDENT CALENDAR MODAL ---
+        window.openStudentCalendar = function(studentUsername) {
+            const attendanceData = (window.cachedData && window.cachedData.attendance) || [];
+            const studentAttendance = attendanceData.filter(a => a.username === studentUsername && a.status !== 'pending');
+
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            const thisMonthAttendance = studentAttendance.filter(a => {
+                const d = new Date(a.date);
+                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            });
+
+            const attendanceByDay = {};
+            thisMonthAttendance.forEach(a => {
+                const day = new Date(a.date).getDate();
+                attendanceByDay[day] = (attendanceByDay[day] || 0) + 1;
+            });
+
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const monthName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+            let gridHtml = '';
+            const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+            dayNames.forEach(d => gridHtml += `<div class="text-center text-[10px] font-bold text-slate-400 pb-1">${d}</div>`);
+
+            for (let i = 0; i < firstDay; i++) gridHtml += `<div></div>`;
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const marksCount = attendanceByDay[day] || 0;
+                let marksHtml = '';
+                for (let m = 0; m < Math.min(marksCount, 3); m++) marksHtml += `<span class="calendar-mark"></span>`;
+                if (marksCount > 3) marksHtml += `<span class="text-[8px] font-bold text-emerald-600 ml-0.5">+${marksCount - 3}</span>`;
+
+                const isAttended = marksCount > 0 ? 'attended shadow-sm' : 'bg-slate-50 text-slate-400';
+                gridHtml += `
+                    <div class="calendar-day ${isAttended} relative">
+                        <span>${day}</span>
+                        ${marksCount > 0 ? `<div class="flex flex-wrap justify-center mt-1 w-full px-1 items-center">${marksHtml}</div>` : ''}
+                    </div>
+                `;
+            }
+
+            const existingModal = document.getElementById('studentCalendarModal');
+            if (existingModal) existingModal.remove();
+
+            const modalHtml = `
+                <div id="studentCalendarModal" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm fade-in">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+                        <div class="bg-brand-600 p-4 flex justify-between items-center text-white">
+                            <h3 class="font-bold text-lg truncate pr-2"><i class="fas fa-user mr-2"></i> ${studentUsername}</h3>
+                            <button onclick="document.getElementById('studentCalendarModal').remove()" class="text-brand-100 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <div class="p-6">
+                            <div class="text-center font-bold text-slate-700 mb-4 text-lg">${monthName}</div>
+                            <div class="calendar-grid">
+                                ${gridHtml}
+                            </div>
+                            <div class="mt-6">
+                                <div class="text-center text-sm text-slate-500 bg-slate-50 py-2 rounded-lg border border-slate-100">
+                                    Classes Attended This Month: <b class="text-emerald-600">${thisMonthAttendance.length}</b>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = modalHtml;
+            document.getElementById('global-modals').appendChild(tempDiv.firstElementChild);
+        };
+
+        // --- NAVIGATION & SIDEBAR ---
+        window.navigateTo = function(viewName) {
+            if (ROUTES[viewName]) {
+                window.location.href = ROUTES[viewName];
+            }
+        };
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sidebar || !overlay) return;
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        };
+
+        window.handleLogout = function() {
+            window.currentUser = null;
+            sessionStorage.removeItem('cta_session_user');
+            showToast('Logged out', 'info');
+            setTimeout(() => {
+                window.location.href = ROUTES.login;
+            }, 300);
+        };
+
+        // --- FILTERS ---
+        window.filterExamSubmissions = function() {
+            const input = document.getElementById("examSubSearch");
+            const filterText = input ? input.value.toUpperCase() : "";
+            const dropdown = document.getElementById("examSubFilter");
+            const filterStatus = dropdown ? dropdown.value : "all";
+            const tableBody = document.getElementById("examSubmissionTableBody");
+            if (!tableBody) return;
+            const tr = tableBody.getElementsByTagName("tr");
+
+            for (let i = 0; i < tr.length; i++) {
+                const tdName = tr[i].getElementsByTagName("td")[0];
+                const rowStatus = tr[i].getAttribute("data-status");
+                if (tdName && rowStatus) {
+                    const txtValue = tdName.textContent || tdName.innerText;
+                    const matchesText = txtValue.toUpperCase().indexOf(filterText) > -1;
+                    let matchesStatus = true;
+                    if (filterStatus !== 'all') {
+                        if (filterStatus === 'pending' && rowStatus !== 'pending') matchesStatus = false;
+                        if (filterStatus === 'correct' && rowStatus !== 'correct') matchesStatus = false;
+                        if (filterStatus === 'incorrect' && rowStatus !== 'incorrect') matchesStatus = false;
+                    }
+                    tr[i].style.display = (matchesText && matchesStatus) ? "" : "none";
+                }
+            }
+        };
+
+        // --- ACTION HANDLERS ---
+        window.handleDeleteExam = async function(id, btn) {
+            if (!confirm('Delete this allocated Exam?')) return;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            const response = await deleteExamAPI(id);
+            if (response && response.success) {
+                showToast('Exam Deleted', 'success');
+                await refreshData(false);
+            } else {
+                showToast((response && response.message) || 'Error deleting', 'error');
+                btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            }
+        };
+
+        window.handleSubmissionGrade = async function(id, status, btn) {
+            const remarkInput = document.getElementById(`remark-${id}`);
+            const remarks = remarkInput ? remarkInput.value : "";
+            const parentDiv = btn.parentElement;
+            const buttons = parentDiv.getElementsByTagName('button');
+            for (let b of buttons) b.disabled = true;
+            showToast(`Marking as ${status}...`, 'info');
+            const response = await updateSubmissionStatusAPI(id, status, remarks);
+            if (response && response.success) {
+                showToast('Status & Remarks Updated', 'success');
+                await refreshData(false);
+            } else {
+                showToast('Update failed', 'error');
+                for (let b of buttons) b.disabled = false;
+            }
+        };
+
+        window.handleDeleteSubmission = async function(id, btn) {
+            if (!confirm("Permanently delete this submission?")) return;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            const response = await deleteSubmissionAPI(id);
+            if (response && response.success) {
+                showToast('Submission Deleted', 'success');
+                await refreshData(false);
+            } else {
+                showToast('Delete failed', 'error');
+                btn.innerHTML = '<i class="fas fa-trash"></i>';
+            }
+        };
+
+        // --- DATA LOADER & SESSION GUARD ---
+        async function loadExamsPage(showLoader = true, showRefreshToast = false) {
+            const rawSession = sessionStorage.getItem('cta_session_user');
+            if (!rawSession) {
+                window.location.href = ROUTES.login;
+                return;
+            }
+
+            let sessionUser;
+            try {
+                sessionUser = JSON.parse(rawSession);
+            } catch (e) {
+                sessionStorage.removeItem('cta_session_user');
+                window.location.href = ROUTES.login;
+                return;
+            }
+
+            if (sessionUser.role !== 'admin') {
+                window.location.href = sessionUser.status === 'tieup' ? ROUTES.adminAttendance : ROUTES.student;
+                return;
+            }
+
+            window.currentUser = sessionUser;
+            const app = document.getElementById('app');
+
+            if (showLoader) {
+                app.innerHTML = `
+                    <div class="text-brand-600 font-bold flex flex-col items-center">
+                        <div class="loader mb-2 w-8 h-8 border-4"></div>
+                        Connecting to Academy Server...
+                    </div>
+                `;
+            }
+
+            try {
+                const [users, exams, submissions, attendance] = await Promise.all([
+                    fetchUsers(),
+                    fetchExams(),
+                    fetchSubmissions(),
+                    fetchAttendance()
+                ]);
+
+                if (!Array.isArray(users)) {
+                    app.innerHTML = `
+                        <div class="glass-panel rounded-xl p-8 text-center max-w-md mx-auto">
+                            <i class="fas fa-wifi text-3xl text-red-500 mb-3"></i>
+                            <h2 class="font-bold text-lg text-slate-800 mb-2">Connection Error</h2>
+                            <p class="text-slate-500 text-sm mb-4">Unable to reach Academy Server. Please check your connection and try again.</p>
+                            <button onclick="loadExamsPage(true, false)" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-colors">Retry</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                window.cachedData = {
+                    users: users || [],
+                    exams: exams || [],
+                    submissions: submissions || [],
+                    attendance: attendance || []
+                };
+
+                app.innerHTML = renderAdminExams(window.cachedData);
+                attachEventListeners();
+
+                if (showRefreshToast) {
+                    showToast("Data Refreshed", "info");
+                }
+            } catch (err) {
+                console.error('loadExamsPage error:', err);
+                showToast('Failed to load exams page', 'error');
+            }
+        }
+
+        window.refreshData = async function(notify = true) {
+            await loadExamsPage(false, notify);
+        };
+
+        // Start Page
+        loadExamsPage(true, false);
+    </script>
+</body>
+</html>

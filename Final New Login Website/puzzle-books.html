@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chess Titans Academy - Puzzle Book Upload</title>
+    <link rel="icon" href="images/logo.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'], },
+                    colors: {
+                        brand: { 50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12', },
+                        secondary: { 900: '#1a1a1a', 800: '#262626', }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #fff7ed;
+            background-image: linear-gradient(rgba(249, 115, 22, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            height: 100vh; height: 100dvh;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+            border: 1px solid rgba(249, 115, 22, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(234, 88, 12, 0.1), 0 8px 10px -6px rgba(234, 88, 12, 0.1);
+        }
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .loader {
+            border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #ea580c;
+            width: 20px; height: 20px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Custom Animation for Dancing Robot */
+        @keyframes dance {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-4px) rotate(-15deg); }
+            50% { transform: translateY(0) rotate(0deg); }
+            75% { transform: translateY(-4px) rotate(15deg); }
+        }
+        .animate-dance {
+            animation: dance 1s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .sidebar-transition { transition: transform 0.3s ease-in-out; }
+        .snap-x-mandatory { scroll-snap-type: x mandatory; }
+        .snap-center { scroll-snap-align: center; }
+
+        /* Custom Calendar Grid */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #f1f5f9; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;}
+        .calendar-day.attended { background-color: #ecfdf5; border-color: #10b981; color: #065f46; }
+        .calendar-day.pending { background-color: #fffbeb; border-color: #f59e0b; color: #b45309; }
+        .calendar-day.admin-interactive:hover { border-color: #10b981; background-color: #f0fdf4; }
+        .calendar-mark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #10b981; margin: 1px; }
+        .calendar-mark-pending { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #f59e0b; margin: 1px; }
+    </style>
+</head>
+<body class="antialiased text-slate-800 flex flex-col overflow-hidden">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-xs px-4 md:px-0 ml-auto"></div>
+
+    <div id="app" class="flex-grow flex items-center justify-center p-4 w-full h-full relative">
+        <div class="text-brand-600 font-bold flex flex-col items-center">
+            <div class="loader mb-2 w-8 h-8 border-4"></div>
+            Connecting to Academy Server...
+        </div>
+    </div>
+
+    <div id="global-modals"></div>
+
+    <script>
+        // --- API & ROUTE CONFIGURATION ---
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwIRGaR75isLAnfazJciZ-YWIk_GHJK-MPcV0TZwlLkoUEJvc1LQ1GKpAiYxoMlXYy1PQ/exec';
+
+        const ROUTES = {
+            login: 'index.html',
+            student: 'student.html',
+            adminDashboard: 'admin.html',
+            unrankedStudents: 'unranked.html',
+            expiredStudents: 'expired.html',
+            pendingStudents: 'pending.html',
+            adminAttendance: 'attendance.html',
+            initialStudents: 'initial.html',
+            attendanceApproval: 'attendance-approval.html',
+            adminExams: 'exams.html',
+            puzzleBooks: 'puzzle-books.html',
+            academyTieup: 'tieup.html',
+            activityLogs: 'activity-logs.html'
+        };
+
+        const ACADEMY_LEVELS = [
+            'Beginner Level 1', 'Beginner Level 2',
+            'Intermediate Level 1', 'Intermediate Level 2',
+            'Advance Level 1', 'Advance Level 2', 'Advance Level 3',
+            'Advance Pro',
+            'Tournament Puzzles',
+            'Exam'
+        ];
+
+        window.currentUser = null;
+        window.cachedData = null;
+
+        // --- BOOK SCOPE HELPER ---
+        function parseBookScope(b) {
+            const accessRaw = String(b.accessType || '').trim().toLowerCase();
+            const targetRaw = String(b.targetType || 'All').trim().toLowerCase();
+
+            let isViewAll = false;
+            if (accessRaw === 'all') {
+                isViewAll = true;
+            } else if (accessRaw === 'paid') {
+                isViewAll = false;
+            } else if (targetRaw.startsWith('allstudents')) {
+                isViewAll = true;
+            } else {
+                isViewAll = false;
+            }
+
+            let baseTarget = 'all';
+            if (targetRaw === 'rank' || targetRaw.endsWith(':rank')) {
+                baseTarget = 'rank';
+            } else if (targetRaw === 'student' || targetRaw.endsWith(':student')) {
+                baseTarget = 'student';
+            }
+
+            return { isViewAll, baseTarget };
+        }
+
+        // --- DATA MANAGEMENT ---
+        async function fetchUsers() { try { return await (await fetch(`${API_URL}?action=getUsers&t=${Date.now()}`)).json(); } catch (e) { return null; } }
+        async function fetchAttendance() { try { return await (await fetch(`${API_URL}?action=getAttendance&t=${Date.now()}`)).json(); } catch (e) { return []; } }
+        async function fetchPuzzleBooks() { try { return await (await fetch(`${API_URL}?action=getPuzzleBooks&t=${Date.now()}`)).json(); } catch (e) { return []; } }
+
+        async function uploadFileAPI(data) { return await sendPostRequest(data); }
+        async function deletePuzzleBookAPI(id) { return await sendPostRequest({ action: 'deletePuzzleBook', id: id }); }
+
+        async function sendPostRequest(data) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(data)
+                });
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (err) {
+                    return { success: false, message: "Server response was invalid or timed out." };
+                }
+            } catch (error) {
+                return { success: false, message: error.message };
+            }
+        }
+
+        // --- UI UTILITIES ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-600 text-white border-l-4 border-emerald-800',
+                error: 'bg-red-500 text-white border-l-4 border-red-800',
+                info: 'bg-brand-600 text-white border-l-4 border-brand-800'
+            };
+            const icons = {
+                success: '<i class="fas fa-check-circle mr-2"></i>',
+                error: '<i class="fas fa-exclamation-triangle mr-2"></i>',
+                info: '<i class="fas fa-info-circle mr-2"></i>'
+            };
+            toast.className = `${colors[type]} px-4 py-3 md:px-6 md:py-4 rounded shadow-2xl transform transition-all duration-300 translate-x-full pointer-events-auto flex items-center font-medium text-sm md:text-base`;
+            toast.innerHTML = `${icons[type]} <span>${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-x-full'));
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- SIDEBAR GENERATOR ---
+        function getAdminSidebar(activeTab, unrankedCount, expiredCount, pendingCount, pendingAttCount = 0, initialCount = 0, tieupCount = 0) {
+            const expiredBadge = expiredCount > 0 ? `<span class="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${expiredCount}</span>` : '';
+            const pendingBadge = pendingCount > 0 ? `<span class="ml-auto bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${pendingCount}</span>` : '';
+            const unrankedBadge = unrankedCount > 0 ? `<span class="ml-auto bg-brand-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${unrankedCount}</span>` : '';
+            const initialBadge = initialCount > 0 ? `<span class="ml-auto bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${initialCount}</span>` : '';
+            const attBadge = pendingAttCount > 0 ? `<span class="ml-auto bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${pendingAttCount}</span>` : '';
+            const tieupBadge = tieupCount > 0 ? `<span class="ml-auto bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${tieupCount}</span>` : '';
+
+            const tabs = [
+                { id: 'adminDashboard', icon: 'fa-users-cog', label: 'Dashboard', badge: '' },
+                { id: 'unrankedStudents', icon: 'fa-user-tag', label: 'Unranked Students', badge: unrankedBadge },
+                { id: 'expiredStudents', icon: 'fa-clock', label: 'Plan Expired Students', badge: expiredBadge },
+                { id: 'pendingStudents', icon: 'fa-user-clock', label: 'Pending Students', badge: pendingBadge },
+                { id: 'adminAttendance', icon: 'fa-calendar-check', label: 'Student Attendance', badge: '' },
+                { id: 'initialStudents', icon: 'fa-chess-pawn', label: 'Initial Grade Students', badge: initialBadge },
+                { id: 'attendanceApproval', icon: 'fa-check-double', label: 'Attendance Approval', badge: attBadge },
+                { id: 'adminExams', icon: 'fa-file-signature', label: 'Manage Exams', badge: '' },
+                { id: 'puzzleBooks', icon: 'fa-book-open', label: 'Puzzle Book Upload', badge: '' },
+                { id: 'academyTieup', icon: 'fa-handshake', label: 'Academy Tie-up', badge: tieupBadge },
+                { id: 'activityLogs', icon: 'fa-history', label: 'Activity Logs', badge: '' }
+            ];
+
+            const navItems = tabs.map(t => {
+                const isActive = activeTab === t.id;
+                const baseClass = "w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors mt-1";
+                if (isActive && t.id === 'puzzleBooks') return `<div class="${baseClass} bg-pink-600 text-white shadow-lg"><i class="fas ${t.icon} w-5 text-center"></i> <span>${t.label}</span> ${t.badge}</div>`;
+                if (isActive) return `<div class="${baseClass} bg-brand-600 text-white shadow-lg"><i class="fas ${t.icon} w-5 text-center"></i> <span>${t.label}</span> ${t.badge}</div>`;
+                return `<button onclick="navigateTo('${t.id}')" class="${baseClass} text-slate-400 hover:bg-white/5 hover:text-white"><i class="fas ${t.icon} w-5 text-center"></i> <span>${t.label}</span> ${t.badge}</button>`;
+            }).join('');
+
+            return `
+                <div id="adminSidebar" class="w-64 bg-secondary-900 text-slate-300 flex-shrink-0 flex flex-col absolute inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 z-50 sidebar-transition h-full border-r border-slate-800">
+                    <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 20px 20px;"></div>
+                    <div class="p-6 border-b border-white/10 relative z-10 flex justify-between items-center">
+                        <div class="flex items-center gap-3 text-white">
+                            <div class="bg-brand-500 w-8 h-8 rounded flex items-center justify-center text-secondary-900"><i class="fas fa-chess-queen"></i></div>
+                            <span class="font-bold text-lg tracking-wide">TitansAdmin</span>
+                        </div>
+                        <button onclick="toggleSidebar()" class="md:hidden text-white p-2"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <nav class="flex-grow p-4 space-y-1 relative z-10 overflow-y-auto">
+                        <div class="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Management</div>
+                        ${navItems}
+                    </nav>
+                    <div class="p-4 border-t border-white/10 relative z-10">
+                        <button onclick="handleLogout()" class="w-full px-4 py-2 border border-slate-700 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/50 text-slate-400 rounded-lg transition-all flex items-center justify-center gap-2"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- VIEW RENDERER ---
+        function renderPuzzleBooks(data) {
+            const users = data.users || [];
+            const attendanceData = data.attendance || [];
+            const puzzleBooks = data.puzzleBooks || [];
+
+            const allStudents = users.filter(u => ['approved', 'blocked', 'expired', 'tieup'].includes(u.status) && u.role !== 'admin');
+            const allSelectableStudents = users.filter(u => ['approved', 'expired'].includes(u.status) && u.role !== 'admin');
+            const paidStudentsOnly = users.filter(u => u.status === 'approved' && u.role !== 'admin' && u.level && String(u.level).trim().toLowerCase() !== 'unranked');
+
+            window.allSelectableStudents = allSelectableStudents;
+            window.paidStudentsOnly = paidStudentsOnly;
+
+            const unrankedCount = allStudents.filter(u => !u.level || u.level === 'Unranked').length;
+            const initialCount = allStudents.filter(u => String(u.level || '').trim().toLowerCase() === 'initial').length;
+            const tieupCount = users.filter(u => u.status === 'tieup' && u.role !== 'admin').length;
+            const expiredCount = users.filter(u => u.status === 'expired').length;
+            const pendingCount = users.filter(u => u.status === 'pending').length;
+            const pendingAttCount = attendanceData.filter(a => a.status === 'pending').length;
+
+            return `
+            <div class="glass-panel w-full max-w-6xl rounded-2xl overflow-hidden fade-in shadow-2xl flex flex-col h-full md:h-[90vh]">
+                <div class="flex h-full relative">
+                    ${getAdminSidebar('puzzleBooks', unrankedCount, expiredCount, pendingCount, pendingAttCount, initialCount, tieupCount)}
+
+                    <div id="sidebarOverlay" onclick="toggleSidebar()" class="absolute inset-0 bg-black/50 z-40 hidden md:hidden fade-in"></div>
+
+                    <div class="flex-grow flex flex-col bg-slate-50 overflow-hidden w-full">
+                        <header class="bg-white border-b border-slate-200 p-4 md:p-6 flex justify-between items-center sticky top-0 z-20">
+                            <div class="flex items-center gap-3">
+                                <button onclick="toggleSidebar()" class="md:hidden text-slate-500 hover:text-brand-600 p-2"><i class="fas fa-bars text-xl"></i></button>
+                                <div><h2 class="text-lg md:text-2xl font-bold text-pink-900">Puzzle Book Upload</h2></div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="refreshData()" class="text-pink-600 hover:bg-pink-50 px-3 py-1 rounded text-sm font-medium transition-colors"><i class="fas fa-sync-alt mr-1"></i> <span class="hidden md:inline">Refresh Data</span></button>
+                            </div>
+                        </header>
+
+                        <div class="flex-grow p-4 md:p-8 overflow-y-auto">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                <div class="md:col-span-1 flex flex-col gap-6">
+                                    <div class="bg-white rounded-xl shadow-sm border border-pink-200 p-6">
+                                        <h3 class="font-bold text-pink-900 mb-4 flex items-center gap-2"><i class="fas fa-upload"></i> Upload New Book</h3>
+                                        <form id="addPuzzleBookForm" class="space-y-4">
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Student Access</label>
+                                                <select id="bookAccessType" onchange="handleAccessTypeChange()" required class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-pink-500 outline-none">
+                                                    <option value="all">View All Students</option>
+                                                    <option value="paid">Paid Students Only</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Book Title</label>
+                                                <input type="text" id="bookTitle" required placeholder="e.g. Grandmaster Tactics Vol 1" class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-pink-500 outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Target Audience</label>
+                                                <select id="bookTargetType" onchange="togglePuzzleBookTarget()" required class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-pink-500 outline-none">
+                                                    <option value="All" id="optTargetAllStudents">All Students (Default)</option>
+                                                    <option value="AllActive" id="optTargetAllActive" disabled>All Active Students (Blocked)</option>
+                                                    <option value="Rank" id="optTargetRank">Specific Rank</option>
+                                                    <option value="Student" id="optTargetStudent">Individual Student</option>
+                                                </select>
+                                            </div>
+                                            <div id="bookTargetRankDiv" class="hidden">
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Select Rank</label>
+                                                <select id="bookTargetRank" class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-pink-500 outline-none">
+                                                    ${ACADEMY_LEVELS.map(l => `<option value="${l}">${l}</option>`).join('')}
+                                                </select>
+                                            </div>
+                                            <div id="bookTargetStudentDiv" class="hidden">
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Select Student</label>
+                                                <select id="bookTargetStudent" class="w-full border border-slate-200 rounded-lg p-2 text-sm focus:border-pink-500 outline-none">
+                                                    ${allSelectableStudents.map(s => `<option value="${s.username}">${s.username} (${s.level || 'Unranked'}${s.status === 'expired' ? ' - Expired' : ''})</option>`).join('')}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Select PDF or Image</label>
+                                                <input type="file" id="bookFile" accept="application/pdf,image/*" required class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 transition-all cursor-pointer border border-slate-200 p-2 rounded-lg bg-white">
+                                            </div>
+
+                                            <div id="pb-progress-container" class="hidden mt-3 w-full">
+                                                <div class="flex justify-between text-xs text-slate-500 mb-1"><span id="pb-upload-text">Uploading...</span><span id="pb-upload-percent">0%</span></div>
+                                                <div class="w-full bg-slate-200 rounded-full h-2">
+                                                    <div id="pb-progress-bar" class="bg-pink-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                                </div>
+                                            </div>
+
+                                            <button type="submit" id="btnUploadBook" class="w-full bg-pink-600 text-white font-bold py-2 rounded-lg hover:bg-pink-700 transition-colors flex items-center justify-center gap-2"><i class="fas fa-cloud-upload-alt"></i> Upload Book</button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <div class="md:col-span-2 flex flex-col gap-6 h-full min-h-[500px]">
+                                    <div class="bg-white rounded-xl shadow-sm border border-pink-200 flex flex-col overflow-hidden h-full min-h-[300px]">
+                                        <div class="p-4 border-b border-pink-100 bg-pink-50 flex justify-between items-center">
+                                            <div>
+                                                <h3 class="font-bold text-pink-900"><i class="fas fa-book-open mr-1"></i> Uploaded Books</h3>
+                                                <span class="text-xs text-pink-600">Showing all shared puzzle books</span>
+                                            </div>
+                                        </div>
+                                        <div class="overflow-y-auto flex-grow p-0">
+                                            <table class="w-full text-left text-sm text-slate-600">
+                                                <thead class="bg-white text-slate-500 font-semibold uppercase text-xs tracking-wider sticky top-0 border-b border-slate-100">
+                                                    <tr><th class="px-6 py-3">Book Title</th><th class="px-6 py-3">Target</th><th class="px-6 py-3">Date</th><th class="px-6 py-3 text-right">Action</th></tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100">
+                                                    ${puzzleBooks.length === 0 ? `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No puzzle books uploaded.</td></tr>` : puzzleBooks.map(b => {
+                                                        const scope = parseBookScope(b);
+                                                        let targetBadge = scope.isViewAll
+                                                            ? '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">All Students</span>'
+                                                            : '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">All Paid</span>';
+                                                        if (scope.baseTarget === 'rank' && b.targetRank && b.targetRank !== 'All') {
+                                                            targetBadge = `<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Rank: ${b.targetRank}</span>`;
+                                                        }
+                                                        if (scope.baseTarget === 'student' && b.targetStudent) {
+                                                            targetBadge = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Student: ${b.targetStudent}</span>`;
+                                                        }
+
+                                                        const accessBadge = scope.isViewAll
+                                                            ? '<span class="bg-sky-100 text-sky-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase ml-1">View All</span>'
+                                                            : '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase ml-1">Paid Only</span>';
+
+                                                        return `
+                                                        <tr class="hover:bg-pink-50/30">
+                                                            <td class="px-6 py-3 font-bold text-slate-800">
+                                                                <a href="${b.fileLink}" target="_blank" class="hover:text-pink-600 transition-colors flex items-center gap-2"><i class="fas fa-file-pdf text-pink-500"></i> ${b.title}</a>
+                                                            </td>
+                                                            <td class="px-6 py-3">${targetBadge}${accessBadge}</td>
+                                                            <td class="px-6 py-3 font-mono text-[10px] text-slate-500">${b.date}</td>
+                                                            <td class="px-6 py-3 text-right">
+                                                                <button onclick="handleDeletePuzzleBook('${b.id}', this)" class="text-slate-300 hover:text-red-500 transition-colors p-2" title="Delete Book"><i class="fas fa-trash-alt"></i></button>
+                                                            </td>
+                                                        </tr>`;
+                                                    }).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        // --- FORM EVENT LISTENERS ---
+        function attachEventListeners() {
+            handleAccessTypeChange();
+
+            const pbForm = document.getElementById('addPuzzleBookForm');
+            if (pbForm) {
+                pbForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('btnUploadBook');
+                    const fileInput = document.getElementById('bookFile');
+                    const file = fileInput.files[0];
+                    if (!file) return;
+
+                    if (file.size > 20 * 1024 * 1024) {
+                        alert("FILE TOO BIG: Limit is 20MB.");
+                        return;
+                    }
+
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+
+                    const container = document.getElementById('pb-progress-container');
+                    const progressBar = document.getElementById('pb-progress-bar');
+                    const percentText = document.getElementById('pb-upload-percent');
+                    const statusText = document.getElementById('pb-upload-text');
+
+                    container.classList.remove('hidden');
+                    statusText.innerText = "Reading File...";
+
+                    const reader = new FileReader();
+                    reader.onerror = function() {
+                        alert("Error reading file.");
+                        container.classList.add('hidden');
+                        btn.disabled = false;
+                    };
+
+                    reader.onload = async function(evt) {
+                        const base64Data = evt.target.result.split(',')[1];
+                        const mimeType = file.type;
+                        const fileName = file.name;
+
+                        statusText.innerText = "Uploading to Server...";
+                        let progress = 0;
+                        const interval = setInterval(() => {
+                            if (progress >= 90) clearInterval(interval);
+                            else {
+                                progress += 1;
+                                progressBar.style.width = `${progress}%`;
+                                percentText.innerText = `${progress}%`;
+                            }
+                        }, 500);
+
+                        const accessType = document.getElementById('bookAccessType').value;
+                        const rawTargetType = document.getElementById('bookTargetType').value;
+                        const tRank = document.getElementById('bookTargetRank').value;
+                        const tStudent = document.getElementById('bookTargetStudent').value;
+
+                        // Encode access mode in TargetType as well as AccessType so it works across all server versions
+                        let encodedTargetType = 'PaidOnly';
+                        if (accessType === 'all') {
+                            if (rawTargetType === 'Rank') encodedTargetType = 'AllStudents:Rank';
+                            else if (rawTargetType === 'Student') encodedTargetType = 'AllStudents:Student';
+                            else encodedTargetType = 'AllStudents';
+                        } else {
+                            if (rawTargetType === 'Rank') encodedTargetType = 'PaidOnly:Rank';
+                            else if (rawTargetType === 'Student') encodedTargetType = 'PaidOnly:Student';
+                            else encodedTargetType = 'PaidOnly';
+                        }
+
+                        const response = await uploadFileAPI({
+                            action: 'uploadPuzzleBook',
+                            title: document.getElementById('bookTitle').value,
+                            accessType: accessType,
+                            targetType: encodedTargetType,
+                            targetRank: rawTargetType === 'Rank' ? tRank : '',
+                            targetStudent: rawTargetType === 'Student' ? tStudent : '',
+                            fileData: base64Data,
+                            mimeType: mimeType,
+                            fileName: fileName
+                        });
+
+                        clearInterval(interval);
+
+                        if (response && response.success) {
+                            progressBar.style.width = `100%`;
+                            percentText.innerText = `100%`;
+                            statusText.innerText = "Done!";
+                            showToast(`Puzzle Book Uploaded!`, "success");
+                            await refreshData(false);
+                        } else {
+                            alert("UPLOAD FAILED:\n" + (response ? response.message : "Unknown Error"));
+                            container.classList.add('hidden');
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+
+        // --- PUZZLE BOOK UI FUNCTIONS ---
+        window.handleAccessTypeChange = function() {
+            const accessEl = document.getElementById('bookAccessType');
+            const targetEl = document.getElementById('bookTargetType');
+            const optAllStudents = document.getElementById('optTargetAllStudents');
+            const optAllActive = document.getElementById('optTargetAllActive');
+            const studentSelect = document.getElementById('bookTargetStudent');
+            if (!accessEl || !targetEl || !optAllStudents || !optAllActive || !studentSelect) return;
+
+            const accessType = accessEl.value;
+            if (accessType === 'all') {
+                // View All Students: auto-block All Active Students and default to All Students
+                optAllStudents.disabled = false;
+                optAllStudents.text = 'All Students (Default)';
+                optAllActive.disabled = true;
+                optAllActive.text = 'All Active Students (Blocked)';
+                if (targetEl.value === 'AllActive') {
+                    targetEl.value = 'All';
+                }
+                const list = window.allSelectableStudents || [];
+                studentSelect.innerHTML = list.map(s => `<option value="${s.username}">${s.username} (${s.level || 'Unranked'}${s.status === 'expired' ? ' - Expired' : ''})</option>`).join('');
+            } else {
+                // Paid Students Only: auto-block All Students and default to All Active Paid Students
+                optAllStudents.disabled = true;
+                optAllStudents.text = 'All Students (Blocked)';
+                optAllActive.disabled = false;
+                optAllActive.text = 'All Active Paid Students (Default)';
+                if (targetEl.value === 'All') {
+                    targetEl.value = 'AllActive';
+                }
+                const list = window.paidStudentsOnly || [];
+                studentSelect.innerHTML = list.map(s => `<option value="${s.username}">${s.username} (${s.level})</option>`).join('');
+            }
+            togglePuzzleBookTarget();
+        };
+
+        window.togglePuzzleBookTarget = function() {
+            const val = document.getElementById('bookTargetType').value;
+            const rankDiv = document.getElementById('bookTargetRankDiv');
+            const studentDiv = document.getElementById('bookTargetStudentDiv');
+            if (val === 'All' || val === 'AllActive') {
+                rankDiv.classList.add('hidden');
+                studentDiv.classList.add('hidden');
+            } else if (val === 'Rank') {
+                rankDiv.classList.remove('hidden');
+                studentDiv.classList.add('hidden');
+            } else if (val === 'Student') {
+                rankDiv.classList.add('hidden');
+                studentDiv.classList.remove('hidden');
+            }
+        };
+
+        window.handleDeletePuzzleBook = async function(id, btn) {
+            if (!confirm('Permanently delete this puzzle book?')) return;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            const response = await deletePuzzleBookAPI(id);
+            if (response && response.success) {
+                showToast('Puzzle Book Deleted', 'success');
+                await refreshData(false);
+            } else {
+                showToast('Delete failed', 'error');
+                btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            }
+        };
+
+        // --- NAVIGATION & SIDEBAR ---
+        window.navigateTo = function(viewName) {
+            if (ROUTES[viewName]) {
+                window.location.href = ROUTES[viewName];
+            }
+        };
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sidebar || !overlay) return;
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        };
+
+        window.handleLogout = function() {
+            window.currentUser = null;
+            sessionStorage.removeItem('cta_session_user');
+            showToast('Logged out', 'info');
+            setTimeout(() => {
+                window.location.href = ROUTES.login;
+            }, 300);
+        };
+
+        // --- DATA LOADER & SESSION GUARD ---
+        async function loadPuzzleBooksPage(showLoader = true, showRefreshToast = false) {
+            const rawSession = sessionStorage.getItem('cta_session_user');
+            if (!rawSession) {
+                window.location.href = ROUTES.login;
+                return;
+            }
+
+            let sessionUser;
+            try {
+                sessionUser = JSON.parse(rawSession);
+            } catch (e) {
+                sessionStorage.removeItem('cta_session_user');
+                window.location.href = ROUTES.login;
+                return;
+            }
+
+            if (sessionUser.role !== 'admin') {
+                window.location.href = sessionUser.status === 'tieup' ? ROUTES.adminAttendance : ROUTES.student;
+                return;
+            }
+
+            window.currentUser = sessionUser;
+            const app = document.getElementById('app');
+
+            if (showLoader) {
+                app.innerHTML = `
+                    <div class="text-brand-600 font-bold flex flex-col items-center">
+                        <div class="loader mb-2 w-8 h-8 border-4"></div>
+                        Connecting to Academy Server...
+                    </div>
+                `;
+            }
+
+            try {
+                const [users, attendance, puzzleBooks] = await Promise.all([
+                    fetchUsers(),
+                    fetchAttendance(),
+                    fetchPuzzleBooks()
+                ]);
+
+                if (!Array.isArray(users)) {
+                    app.innerHTML = `
+                        <div class="glass-panel rounded-xl p-8 text-center max-w-md mx-auto">
+                            <i class="fas fa-wifi text-3xl text-red-500 mb-3"></i>
+                            <h2 class="font-bold text-lg text-slate-800 mb-2">Connection Error</h2>
+                            <p class="text-slate-500 text-sm mb-4">Unable to reach Academy Server. Please check your connection and try again.</p>
+                            <button onclick="loadPuzzleBooksPage(true, false)" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-colors">Retry</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                window.cachedData = {
+                    users: users || [],
+                    attendance: attendance || [],
+                    puzzleBooks: puzzleBooks || []
+                };
+
+                app.innerHTML = renderPuzzleBooks(window.cachedData);
+                attachEventListeners();
+
+                if (showRefreshToast) {
+                    showToast("Data Refreshed", "info");
+                }
+            } catch (err) {
+                console.error('loadPuzzleBooksPage error:', err);
+                showToast('Failed to load puzzle books', 'error');
+            }
+        }
+
+        window.refreshData = async function(notify = true) {
+            await loadPuzzleBooksPage(false, notify);
+        };
+
+        // Start Page
+        loadPuzzleBooksPage(true, false);
+    </script>
+</body>
+</html>

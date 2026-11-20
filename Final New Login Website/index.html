@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chess Titans Academy</title>
+    <link rel="icon" href="images/logo.png" />
+    <script src="cta-loader.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'], },
+                    colors: {
+                        brand: { 50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12', },
+                        secondary: { 900: '#1a1a1a', 800: '#262626', }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #fff7ed;
+            background-image: linear-gradient(rgba(249, 115, 22, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            height: 100vh; height: 100dvh;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+            border: 1px solid rgba(249, 115, 22, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(234, 88, 12, 0.1), 0 8px 10px -6px rgba(234, 88, 12, 0.1);
+        }
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .loader {
+            border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #ea580c;
+            width: 20px; height: 20px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Custom Animation for Dancing Robot */
+        @keyframes dance {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-4px) rotate(-15deg); }
+            50% { transform: translateY(0) rotate(0deg); }
+            75% { transform: translateY(-4px) rotate(15deg); }
+        }
+        .animate-dance {
+            animation: dance 1s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .sidebar-transition { transition: transform 0.3s ease-in-out; }
+        .snap-x-mandatory { scroll-snap-type: x mandatory; }
+        .snap-center { scroll-snap-align: center; }
+
+        /* Custom Calendar Grid for Student View */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #f1f5f9; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;}
+        .calendar-day.attended { background-color: #ecfdf5; border-color: #10b981; color: #065f46; }
+        .calendar-day.pending { background-color: #fffbeb; border-color: #f59e0b; color: #b45309; }
+        .calendar-day.admin-interactive:hover { border-color: #10b981; background-color: #f0fdf4; }
+        .calendar-mark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #10b981; margin: 1px; }
+        .calendar-mark-pending { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #f59e0b; margin: 1px; }
+    </style>
+</head>
+<body class="antialiased text-slate-800 flex flex-col overflow-hidden">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-xs px-4 md:px-0 ml-auto"></div>
+
+    <div id="app" class="flex-grow flex items-center justify-center p-4 w-full h-full relative">
+        <div class="text-brand-600 font-bold flex flex-col items-center">
+            <div class="loader mb-2 w-8 h-8 border-4"></div>
+            Connecting to Academy Server...
+        </div>
+    </div>
+
+    <div id="global-modals"></div>
+
+    <script>
+        // --- API & ROUTE CONFIGURATION ---
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyRM4sgazFsYY6StFw2XEsL4MdwcGnv8-RgsjFD9dUBZllkvfEEq01aLXNYHj7mt6bkyw/exec';
+
+        const ROUTES = {
+            login: 'index.html',
+            student: 'student.html',
+            admin: 'admin.html',
+            tieup: 'attendance.html'
+        };
+
+        let CURRENT_VIEW = 'login';
+
+        // --- DATA MANAGEMENT ---
+        async function fetchUsers() {
+            try {
+                const response = await fetch(`${API_URL}?action=getUsers`);
+                if (!response.ok) return null;
+                return await response.json();
+            } catch (e) {
+                console.error('fetchUsers error:', e);
+                return null;
+            }
+        }
+
+        async function registerUserAPI(data) {
+            return await sendPostRequest({ action: 'register', data: data });
+        }
+
+        async function updateUserStatusAPI(username, status) {
+            return await sendPostRequest({ action: 'updateStatus', username: username, status: status });
+        }
+
+        async function logActivityAPI(username, action, details) {
+            return await sendPostRequest({ action: 'logActivity', data: { username, action, details } });
+        }
+
+        async function sendPostRequest(data) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(data)
+                });
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (err) {
+                    return { success: false, message: "Server response was invalid or timed out." };
+                }
+            } catch (error) {
+                return { success: false, message: error.message };
+            }
+        }
+
+        // --- UI UTILITIES ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-600 text-white border-l-4 border-emerald-800',
+                error: 'bg-red-500 text-white border-l-4 border-red-800',
+                info: 'bg-brand-600 text-white border-l-4 border-brand-800'
+            };
+            const icons = {
+                success: '<i class="fas fa-check-circle mr-2"></i>',
+                error: '<i class="fas fa-exclamation-triangle mr-2"></i>',
+                info: '<i class="fas fa-info-circle mr-2"></i>'
+            };
+            toast.className = `${colors[type]} px-4 py-3 md:px-6 md:py-4 rounded shadow-2xl transform transition-all duration-300 translate-x-full pointer-events-auto flex items-center font-medium text-sm md:text-base`;
+            toast.innerHTML = `${icons[type]} <span>${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-x-full'));
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function setButtonLoading(btn, isLoading, text = "") {
+            if (isLoading) {
+                btn.disabled = true;
+                btn.innerHTML = `<div class="loader inline-block mr-2 border-white border-t-transparent w-4 h-4"></div> Processing...`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = text;
+            }
+        }
+
+        // --- SESSION HANDOFF ---
+        function saveSessionAndRedirect(account, targetFile) {
+            sessionStorage.setItem('cta_session_user', JSON.stringify(account));
+            setTimeout(() => {
+                window.location.href = targetFile;
+            }, 350);
+        }
+
+        // --- VIEWS ---
+        const views = {
+            login: () => `
+                <div class="glass-panel w-full max-w-md rounded-xl p-0 fade-in relative overflow-hidden shadow-2xl shadow-orange-900/10 mx-auto">
+                    <div class="bg-brand-600 h-2 w-full"></div>
+                    <div class="p-6 md:p-8">
+                        <div class="text-center mb-6 md:mb-8">
+                            <div class="inline-block relative">
+                                <div class="bg-gradient-to-br from-brand-500 to-red-600 w-16 h-16 md:w-20 md:h-20 rounded-xl flex items-center justify-center mx-auto mb-4 text-white text-2xl md:text-3xl shadow-lg transform rotate-3 hover:rotate-6 transition-transform"><i class="fas fa-chess-knight"></i></div>
+                            </div>
+                            <h1 class="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Chess Titans Academy</h1>
+                            <p class="text-brand-600 font-medium text-xs md:text-sm mt-1 uppercase tracking-wider">Students Login Portal</p>
+                        </div>
+                        <form id="loginForm" class="space-y-4 md:space-y-5">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1 tracking-wide">Username</label>
+                                <div class="relative group">
+                                    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-brand-500 transition-colors"><i class="fas fa-chess-pawn"></i></span>
+                                    <input type="text" id="loginUser" required class="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-500 outline-none transition-all text-sm font-medium" placeholder="Grandmaster">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1 tracking-wide">Password</label>
+                                <div class="relative group">
+                                    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-brand-500 transition-colors"><i class="fas fa-lock"></i></span>
+                                    <input type="password" id="loginPass" required class="w-full pl-10 pr-10 py-3 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-500 outline-none transition-all text-sm font-medium" placeholder="••••••••">
+                                    <button type="button" onclick="togglePassword('loginPass', 'eyeLogin')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-brand-600 transition-colors focus:outline-none"><i id="eyeLogin" class="fas fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <button type="submit" id="btnLogin" class="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-bold py-3.5 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2"><span>Enter Academy</span> <i class="fas fa-arrow-right"></i></button>
+                        </form>
+                        <div class="mt-6 md:mt-8 pt-6 border-t border-slate-100 text-center">
+                            <p class="text-slate-500 text-sm">New Student?</p>
+                            <button onclick="router('register')" class="text-brand-600 font-bold hover:text-brand-700 text-sm mt-1 hover:underline">Apply for Admission</button>
+                        </div>
+                    </div>
+                </div>
+            `,
+            register: () => `
+                <div class="glass-panel w-full max-w-md rounded-xl p-0 fade-in relative overflow-hidden shadow-2xl mx-auto">
+                    <div class="bg-secondary-900 h-2 w-full"></div>
+                    <div class="p-6 md:p-8">
+                        <div class="text-center mb-6">
+                            <h1 class="text-xl md:text-2xl font-bold text-slate-800">Student Registration</h1>
+                            <p class="text-slate-500 text-sm mt-1">Join the ranks of the Titans.</p>
+                        </div>
+                        <form id="registerForm" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Username</label><input type="text" id="regUser" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 outline-none text-sm bg-slate-50 focus:bg-white"></div>
+                                <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Phone</label><input type="tel" id="regPhone" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 outline-none text-sm bg-slate-50 focus:bg-white" placeholder="Mobile #"></div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Create Password</label>
+                                <div class="relative">
+                                    <input type="password" id="regPass" required class="w-full px-4 py-2.5 pr-10 rounded-lg border border-slate-200 focus:border-brand-500 outline-none text-sm bg-slate-50 focus:bg-white">
+                                    <button type="button" onclick="togglePassword('regPass', 'eyeReg')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-brand-600 transition-colors focus:outline-none"><i id="eyeReg" class="fas fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Confirm Password</label>
+                                <div class="relative">
+                                    <input type="password" id="regPassConfirm" required class="w-full px-4 py-2.5 pr-10 rounded-lg border border-slate-200 focus:border-brand-500 outline-none text-sm bg-slate-50 focus:bg-white">
+                                    <button type="button" onclick="togglePassword('regPassConfirm', 'eyeRegConf')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-brand-600 transition-colors focus:outline-none"><i id="eyeRegConf" class="fas fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <div class="pt-3">
+                                <button type="submit" id="btnRegister" class="w-full bg-secondary-900 hover:bg-black text-white font-bold py-3 rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2"><i class="fas fa-chess-pawn"></i> Submit Application</button>
+                            </div>
+                        </form>
+                        <div class="mt-6 text-center">
+                            <button onclick="router('login')" class="text-slate-400 hover:text-brand-600 text-sm font-medium transition-colors">Back to Login</button>
+                        </div>
+                    </div>
+                </div>
+            `
+        };
+
+        // --- CONTROLLER ---
+        function router(route) {
+            CURRENT_VIEW = route;
+            const app = document.getElementById('app');
+            if (views[route]) {
+                app.innerHTML = views[route]();
+                attachEventListeners(route);
+            }
+        }
+
+        function attachEventListeners(route) {
+            if (route === 'login') {
+                document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('btnLogin');
+                    const originalText = btn.innerHTML;
+                    setButtonLoading(btn, true);
+
+                    try {
+                        const user = document.getElementById('loginUser').value.trim();
+                        const pass = document.getElementById('loginPass').value;
+
+                        const users = await fetchUsers();
+
+                        if (!Array.isArray(users)) {
+                            showToast('Unable to connect to Academy Server. Please try again.', 'error');
+                            setButtonLoading(btn, false, originalText);
+                            return;
+                        }
+
+                        if (users.length === 0) {
+                            showToast('No accounts found on server.', 'error');
+                            setButtonLoading(btn, false, originalText);
+                            return;
+                        }
+
+                        const account = users.find(
+                            u => String(u.username).trim().toLowerCase() === String(user).toLowerCase() &&
+                                 String(u.password) === String(pass)
+                        );
+
+                        if (!account) {
+                            showToast('Invalid Credentials', 'error');
+                            setButtonLoading(btn, false, originalText);
+                            return;
+                        }
+
+                        // Clear any previous session before storing the active account
+                        sessionStorage.removeItem('cta_session_user');
+
+                        // 1. Admin Login -> admin.html
+                        if (account.role === 'admin') {
+                            showToast('Welcome Admin', 'success');
+                            saveSessionAndRedirect(account, ROUTES.admin);
+                            return;
+                        }
+
+                        // 2. Academy Tie-Up Partner Login -> attendance.html
+                        if (account.status === 'tieup') {
+                            showToast('Welcome Academy Partner', 'success');
+                            saveSessionAndRedirect(account, ROUTES.tieup);
+                            return;
+                        }
+
+                        // 3. Student Plan Expiration Check
+                        const now = new Date();
+                        if (account.expireDate) {
+                            const expireTime = new Date(account.expireDate);
+                            if (!isNaN(expireTime.getTime()) && now.getTime() > expireTime.getTime()) {
+                                if (account.status === 'approved') {
+                                    await updateUserStatusAPI(account.username, 'expired').catch(console.error);
+                                    account.status = 'expired';
+                                }
+                            }
+                        }
+
+                        // 4. Student Status Enforcement
+                        if (account.status === 'blocked') {
+                            showToast('You have not completed the weekly task', 'error');
+                            setButtonLoading(btn, false, originalText);
+                            return;
+                        }
+                        if (account.status === 'pending') {
+                            showToast('Admission Pending', 'info');
+                            setButtonLoading(btn, false, originalText);
+                            return;
+                        }
+                        if (account.status === 'rejected') {
+                            showToast('Admission Denied', 'error');
+                            setButtonLoading(btn, false, originalText);
+                            return;
+                        }
+
+                        // 5. Log Student Login Activity (capped wait so redirect never hangs)
+                        await Promise.race([
+                            logActivityAPI(account.username, 'Login', 'Student logged into portal successfully').catch(console.error),
+                            new Promise(resolve => setTimeout(resolve, 1500))
+                        ]);
+
+                        showToast('Welcome Student', 'success');
+                        saveSessionAndRedirect(account, ROUTES.student);
+
+                    } catch (err) {
+                        console.error('Login error:', err);
+                        showToast('Login failed. Please try again.', 'error');
+                        setButtonLoading(btn, false, originalText);
+                    }
+                });
+            } else if (route === 'register') {
+                document.getElementById('registerForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('btnRegister');
+                    const originalText = btn.innerHTML;
+                    setButtonLoading(btn, true);
+
+                    try {
+                        const user = document.getElementById('regUser').value.trim();
+                        const phone = document.getElementById('regPhone').value.trim();
+                        const pass = document.getElementById('regPass').value;
+                        const confirm = document.getElementById('regPassConfirm').value;
+
+                        if (pass !== confirm) {
+                            showToast('Passwords do not match', 'error');
+                            setButtonLoading(btn, false, originalText);
+                            return;
+                        }
+                        if (user.length < 3) {
+                            showToast('Username too short', 'error');
+                            setButtonLoading(btn, false, originalText);
+                            return;
+                        }
+
+                        const response = await registerUserAPI({ username: user, password: pass, phone: phone });
+                        setButtonLoading(btn, false, originalText);
+
+                        if (response && response.success) {
+                            showToast('Application Sent!', 'success');
+                            router('login');
+                        } else {
+                            showToast((response && response.message) || 'Error registering', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Registration error:', err);
+                        showToast('Registration failed. Please try again.', 'error');
+                        setButtonLoading(btn, false, originalText);
+                    }
+                });
+            }
+        }
+
+        // --- GLOBAL HANDLERS ---
+        window.router = router;
+
+        window.togglePassword = function(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = "password";
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        };
+
+        // Start App
+        router('login');
+    </script>
+</body>
+</html>
